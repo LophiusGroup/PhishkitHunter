@@ -18,7 +18,7 @@ jobs:
       # Install Tor
       - run: sudo apt install tor
       - run: sudo service --status-all
-      - run: sudo lsof -i | grep tor
+      - run: sudo netstat -antp | grep tor
       # Make sure the tool continues to build properly
       - run: go build -x -v
       - run: mkdir outfiles
