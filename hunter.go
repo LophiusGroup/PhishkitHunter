@@ -4,7 +4,7 @@ import (
 	"flag"
 	"log"
 	"os"
-    "golang.org/x/net/proxy"
+    	"golang.org/x/net/proxy"
 	"net/http"
 	"net/url"
 	"io/ioutil"
@@ -15,11 +15,11 @@ import (
 
 func main() {
 
-    var endPoint = flag.String("endPoint", "", "target url to brute")
-    flag.StringVar(endPoint, "e", "", "target url to brute")
+   	 var endPoint = flag.String("endPoint", "", "target url to brute")
+    	flag.StringVar(endPoint, "e", "", "target url to brute")
 
-    var outDir = flag.String("outDir", "outfiles", "directory to write files to")
-    flag.StringVar(outDir, "o", "outfiles", "directory to write files to")
+    	var outDir = flag.String("outDir", "outfiles", "directory to write files to")
+    	flag.StringVar(outDir, "o", "outfiles", "directory to write files to")
 
 	var wordList = flag.String("wordList", "", "wordlist to use")
 	flag.StringVar(wordList, "w", "", "Input file to triage")
@@ -32,7 +32,7 @@ func main() {
 
 	flag.Parse()
 
-    //Setup logfile stuff
+    	//Setup logfile stuff
 	if *logFile != "" {
 		logTown, err := os.OpenFile(*logFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 		if err != nil {
@@ -63,7 +63,7 @@ func main() {
 }
 
 func ScanListTor(endpoint, wordlist, outDir string) error {
-    //Open wordlist
+    	//Open wordlist
 	words := ReadLines(wordlist)
 	for _, word := range words {
 		err := ReqThroughTor(endpoint, word, outDir)
@@ -113,20 +113,20 @@ func ReqThroughTor(endpoint, target, outDir string) error {
 	defer resp.Body.Close()
 
 	log.Printf("GET returned: %v\n", resp.StatusCode)
-    if resp.StatusCode == 200 {
+    	if resp.StatusCode == 200 {
     	body, err := ioutil.ReadAll(resp.Body)
-	    if err != nil {
-		    log.Printf("Failed to read the body: %v\n", err)
+	    	if err != nil {
+		    	log.Printf("Failed to read the body: %v\n", err)
 			return err
-	    }
-	    //log.Printf("----- Body -----\n%s\n----- Body -----", body)
+	    	}
+	    	//log.Printf("----- Body -----\n%s\n----- Body -----", body)
 		//Parse the URL and save the file based on the full URL
 		targetURL, err := url.Parse(endpoint)
 		paths := strings.Split(targetURL.Path, "/")
 		newPaths := strings.Join(paths, "_")
 		newFile := targetURL.Host + "_" + newPaths + "_" + target
-    	err = CreateFile(body, outDir+"/"+newFile)
-    	if err != nil {
+    		err = CreateFile(body, outDir+"/"+newFile)
+    		if err != nil {
 	   		log.Printf("Failed to save file: %v\n", err)
 			return err
 		} else {
@@ -179,28 +179,28 @@ func ReqBasedOnURL(endpoint, outDir string) (error) {
 //CreateFile takes a byte array and a file path and writes the bytes to that location. 
 //It uses Exists to make sure the file path is available before writing
 func CreateFile(bytes []byte, path string) error {
-    // Check if the file already exists
-    if Exists(path) {
-        return errors.New("The file to create already exists so we won't overwite it")
-    }
-    // write the lines to the file
-    err := ioutil.WriteFile(path, bytes, 0700)
-    if err != nil {
-        return err
-    }
-    return nil
+    	// Check if the file already exists
+    	if Exists(path) {
+        	return errors.New("The file to create already exists so we won't overwite it")
+    	}
+    	// write the lines to the file
+    	err := ioutil.WriteFile(path, bytes, 0700)
+    	if err != nil {
+        	return err
+    	}
+    	return nil
 }
 
 //Exists checks a path and returns a bool if there is a file there
 func Exists(path string) bool {
-    // Run stat on a file
-    _, err := os.Stat(path)
-    // If it runs fine the file exists
-    if err == nil {
-        return true
-    }
-    // If stat fails then the file does not exist
-    return false
+    	// Run stat on a file
+    	_, err := os.Stat(path)
+    	// If it runs fine the file exists
+    	if err == nil {
+        	return true
+    	}
+    	// If stat fails then the file does not exist
+    	return false
 }
 
 // ReadLines reads a whole file into memory
