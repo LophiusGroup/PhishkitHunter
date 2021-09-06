@@ -15,7 +15,6 @@ jobs:
     working_directory: /go/src/github.com/LophiusGroup/PhishkitHunter
     steps:
       - checkout
-      - go/mod-download
       # Make sure the tool continues to build properly
       - run: go build -x -v
       - run: mkdir outfiles
