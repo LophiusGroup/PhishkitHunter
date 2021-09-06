@@ -1,0 +1,23 @@
+# Golang CircleCI 2.0 configuration file
+#
+# Check https://circleci.com/docs/2.0/language-go/ for more details
+version: 2
+jobs:
+  build:
+    docker:
+      # specify the version
+      - image: circleci/golang:1.17
+
+    #### TEMPLATE_NOTE: go expects specific checkout path representing url
+    #### expecting it in the form of
+    ####   /go/src/github.com/circleci/go-tool
+    ####   /go/src/bitbucket.org/circleci/go-tool
+    working_directory: /go/src/github.com/LophiusGroup/PhishkitHunter
+    steps:
+      - checkout
+      # go get repo from outside GOPATH pulls dependancies into GOPATH
+      - run: cd / ; go get github.com/LophiusGroup/PhishkitHunter
+      # Make sure the tool continues to build properly
+      - run: go build -x -v
+      - run: mkdir outfiles
+      - run: ./PhishkitHunter -w wordlist.txt -e https://tradeswarehouse.com/ -o outfiles/
