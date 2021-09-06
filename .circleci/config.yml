@@ -14,7 +14,6 @@ jobs:
     ####   /go/src/bitbucket.org/circleci/go-tool
     working_directory: /go/src/github.com/LophiusGroup/PhishkitHunter
     steps:
-    steps:
       - checkout
       - go/load-cache
       - go/mod-download
