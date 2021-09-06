@@ -14,9 +14,11 @@ jobs:
     ####   /go/src/bitbucket.org/circleci/go-tool
     working_directory: /go/src/github.com/LophiusGroup/PhishkitHunter
     steps:
+    steps:
       - checkout
-      # go get repo from outside GOPATH pulls dependancies into GOPATH
-      - run: cd / ; go get github.com/LophiusGroup/PhishkitHunter
+      - go/load-cache
+      - go/mod-download
+      - go/save-cache
       # Make sure the tool continues to build properly
       - run: go build -x -v
       - run: mkdir outfiles
