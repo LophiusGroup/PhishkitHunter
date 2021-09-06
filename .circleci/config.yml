@@ -16,7 +16,7 @@ jobs:
     steps:
       - checkout
       # Install Tor
-      - run: apt install tor
+      - run: sudo apt install tor
       # Make sure the tool continues to build properly
       - run: go build -x -v
       - run: mkdir outfiles
