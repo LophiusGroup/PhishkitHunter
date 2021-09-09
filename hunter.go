@@ -11,7 +11,15 @@ import (
 	"errors"
 	"bufio"
 	"strings"
+	"net"
+	"fmt"
 )
+
+// TCPServer struct
+type TCPServer struct {
+	Bind string
+	Port int
+}
 
 func main() {
 
@@ -30,6 +38,9 @@ func main() {
 	var urlScan = flag.Bool("urlscan", false, "scan based on the last word in the url path")
 	flag.BoolVar(urlScan, "u", false, "scan based on the last word in the url path")
 
+	var serverPort = flag.String("port", "", "port to start the service on")
+	flag.StringVar(serverPort, "p", "", "port to start the service on")
+
 	flag.Parse()
 
     //Setup logfile stuff
@@ -44,16 +55,34 @@ func main() {
 	}
 	//Scan endpoints based on a wordlist
 	if *wordList != "" {
-		err := ScanListTor(*endPoint, *wordList, *outDir)
-		if err != nil {
-			log.Println(err)
+		if *serverPort != "" {
+			PORT := ":" + *serverPort
+			l, err := net.Listen("tcp4", PORT)
+			if err != nil {
+					log.Println(err)
+					return
+			}
+			defer l.Close()
+			for {
+					c, err := l.Accept()
+					if err != nil {
+							log.Println(err)
+							return
+					}
+					go handleNetworkConnection(c, *wordList, *outDir)
+			}
 		} else {
-			log.Println("Done!")
+			_, _, err := ScanListTor(*endPoint, *wordList, *outDir)
+			if err != nil {
+				log.Println(err)
+			} else {
+				log.Println("Done!")
+			}
 		}
-	}
+	}	
 	//Scan endpoints based on the keywords in the URL
 	if *urlScan {
-		err := ReqBasedOnURL(*endPoint, *outDir)
+		_, _, err := ReqBasedOnURL(*endPoint, *outDir)
 		if err != nil {
 			log.Println(err)
 		} else {
@@ -62,30 +91,36 @@ func main() {
 	}
 }
 
-func ScanListTor(endpoint, wordlist, outDir string) error {
+func ScanListTor(endpoint, wordlist, outDir string) (string, bool, error) {
     //Open wordlist
 	words := ReadLines(wordlist)
 	for _, word := range words {
-		err := ReqThroughTor(endpoint, word, outDir)
+		result, status, err := ReqThroughTor(endpoint, word, outDir)
 		if err != nil {
-			log.Printf("Failed to request with wordlist target: %v, error: %v\n", word, err)
-			return err
+			msg := fmt.Sprintf("Failed to request with wordlist target: %v, error: %v\n", word, err)
+			log.Printf(msg)
+			return "", false, err
+		}
+		if status == true {
+			return result, status, nil
 		}
 	}
-	return nil
+	msg := fmt.Sprintf("Did not find kit using wordlist %v and endpoint %v", wordlist, endpoint)
+	log.Printf(msg)
+	return msg, false, nil
 }
 
 
 // Tor HTTP Request, largely from: https://gist.github.com/Yawning/bac58e08a05fc378a8cc
 // ReqThroughTor
-func ReqThroughTor(endpoint, target, outDir string) error {
+func ReqThroughTor(endpoint, target, outDir string) (string, bool, error) {
 	// Create a transport that uses Tor Browser's SocksPort.  If
 	// talking to a system tor, this may be an AF_UNIX socket, or
 	// 127.0.0.1:9050 instead.
 	tbProxyURL, err := url.Parse("socks5://127.0.0.1:9050")
 	if err != nil {
 	    log.Printf("Failed to parse proxy URL: %v\n", err)
-		return err
+		return "", false, err
 	}
 
 	// Get a proxy Dialer that will create the connection on our
@@ -95,7 +130,7 @@ func ReqThroughTor(endpoint, target, outDir string) error {
 	tbDialer, err := proxy.FromURL(tbProxyURL, proxy.Direct)
 	if err != nil {
 		log.Printf("Failed to obtain proxy dialer: %v\n", err)
-		return err
+		return "", false, err
 	}
 
 	// Make a http.Transport that uses the proxy dialer, and a
@@ -108,7 +143,7 @@ func ReqThroughTor(endpoint, target, outDir string) error {
 	resp, err := client.Get(endpoint+target)
 	if err != nil {
 		log.Printf("Failed to issue GET request: %v\n", err)
-		return err
+		return "", false, err
 	}
 	defer resp.Body.Close()
 
@@ -117,7 +152,7 @@ func ReqThroughTor(endpoint, target, outDir string) error {
     	body, err := ioutil.ReadAll(resp.Body)
 	    if err != nil {
 		    log.Printf("Failed to read the body: %v\n", err)
-			return err
+			return "", false, err
 	    }
 	    //log.Printf("----- Body -----\n%s\n----- Body -----", body)
 		//Parse the URL and save the file based on the full URL
@@ -128,22 +163,24 @@ func ReqThroughTor(endpoint, target, outDir string) error {
     	err = CreateFile(body, outDir+"/"+newFile)
     	if err != nil {
 	   		log.Printf("Failed to save file: %v\n", err)
-			return err
+			return "", false, err
 		} else {
-			log.Printf("Found and saved kit from: %v%v\n", endpoint, target)
-			return nil
+			msg := fmt.Sprintf("Found and saved kit from: %v%v\n", endpoint, target)
+			log.Println(msg)
+			return msg, true, nil
 		}
     }
-	log.Printf("Did not find kit at %v%v\n", endpoint, target)
-	return nil
+	msg := fmt.Sprintf("Did not find kit at %v%v\n", endpoint, target)
+	log.Printf(msg)
+	return msg, false, nil
 }
 
 //ReqBasedOnURL will parse the endpoint url and construct two new scans based on the final dir in the path of the endpoint
-func ReqBasedOnURL(endpoint, outDir string) (error) {
+func ReqBasedOnURL(endpoint, outDir string) (string, bool, error) {
 	targetURL, err := url.Parse(endpoint)
 	if err != nil {
 		log.Printf("Failed to parse the URL: %v\n", err)
-		return err
+		return "", false, err
 	}	
 	//fmt.Println(targetURL.Path)
 	// Split the URL path up
@@ -158,21 +195,34 @@ func ReqBasedOnURL(endpoint, outDir string) (error) {
 		final := paths[len(paths)-2] + ".zip"
 		log.Printf("final req is: %v\n", final)
 		// Request the original endpoint w/ the new zip target
-		err := ReqThroughTor(endpoint, final, outDir)
+		_, status, err := ReqThroughTor(endpoint, final, outDir)
 		if err != nil {
 			log.Printf("Failed to request with target from URL: %v, error: %v\n", final, err)
-			return err
+			return "", false, err
+		}
+		if status == true {
+			msg := fmt.Sprintf("Found and saved kit from: %v%v\n", endpoint, final)
+			log.Printf(msg)
+			return msg, true, nil
 		}
 		// Request the new endpoint w/ the new zip target
-		err = ReqThroughTor(newEndpoint, final, outDir)
+		_, status, err = ReqThroughTor(newEndpoint, final, outDir)
 		if err != nil {
 			log.Printf("Failed to request with target from URL: %v, error: %v\n", final, err)
-			return err
+			return "", false, err
+		}
+		if status == true {
+			msg := fmt.Sprintf("Found and saved kit from: %v%v\n", newEndpoint, final)
+			log.Printf(msg)
+			return msg, true, nil
 		}
 	} else {
 		log.Printf("endpoint: %v didn't have enough dirs in the path", endpoint)
 	}
-	return nil
+
+	msg := fmt.Sprintf("Did not find kit with url method %v\n", endpoint)
+	log.Printf(msg)
+	return msg, false, nil
 }
 
 
@@ -218,4 +268,26 @@ func ReadLines(path string) []string {
 		lines = append(lines, scanner.Text())
 	}
 	return lines
+}
+
+
+func handleNetworkConnection(c net.Conn, wordlist, outdir string) {
+	log.Printf("Serving %s\n", c.RemoteAddr().String())
+	netData, err := bufio.NewReader(c).ReadString('\n')
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	log.Printf("received %v", netData)
+	netData = strings.TrimRight(netData, "\n")
+	netData = strings.TrimRight(netData, "\r")
+	result, _, err := ScanListTor(netData, wordlist, outdir)
+	if err != nil {
+		log.Println(err)
+		c.Write([]byte(string(err.Error())))
+		c.Close()
+		return
+	}
+	c.Write([]byte(string(result)))
+	c.Close()
 }
