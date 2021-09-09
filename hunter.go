@@ -15,15 +15,9 @@ import (
 	"fmt"
 )
 
-// TCPServer struct
-type TCPServer struct {
-	Bind string
-	Port int
-}
-
 func main() {
 
-   	 var endPoint = flag.String("endPoint", "", "target url to brute")
+   	var endPoint = flag.String("endPoint", "", "target url to brute")
     	flag.StringVar(endPoint, "e", "", "target url to brute")
 
     	var outDir = flag.String("outDir", "outfiles", "directory to write files to")
@@ -149,13 +143,11 @@ func ReqThroughTor(endpoint, target, outDir string) (string, bool, error) {
 
 	log.Printf("GET returned: %v\n", resp.StatusCode)
     	if resp.StatusCode == 200 {
-    	body, err := ioutil.ReadAll(resp.Body)
-	    if err != nil {
-		    log.Printf("Failed to read the body: %v\n", err)
+    		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			log.Printf("Failed to read the body: %v\n", err)
 			return "", false, err
-	    }
-	    //log.Printf("----- Body -----\n%s\n----- Body -----", body)
-
+		}
 		//Parse the URL and save the file based on the full URL
 		targetURL, err := url.Parse(endpoint)
 		paths := strings.Split(targetURL.Path, "/")
