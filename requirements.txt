@@ -1,4 +1,0 @@
-pyyaml
-fire
-requests
-bs4
